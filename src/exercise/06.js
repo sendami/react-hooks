@@ -2,49 +2,52 @@
 // http://localhost:3000/isolated/exercise/06.js
 
 import * as React from 'react'
-// 🐨 you'll want the following additional things from '../pokemon':
-// fetchPokemon: the function we call to get the pokemon info
-// PokemonInfoFallback: the thing we show while we're loading the pokemon info
-// PokemonDataView: the stuff we use to display the pokemon info
 import {PokemonForm, fetchPokemon, PokemonInfoFallback, PokemonDataView} from '../pokemon'
 import {useEffect, useState} from "react";
 
-function PokemonInfo({pokemonName}) {
-    // 🐨 Have state for the pokemon (null)
-    console.log(pokemonName);
-    const [pokemon, setPokemon] = useState(null);
-    const [error, setError] = useState(null);
+function ErrorBoundary({error, resetKeys, children}) {
+    if (error) {
+        return (
+            <div role="alert">
+                There was an error: <pre style={{whiteSpace: 'normal'}}>{error.message}</pre>
+                <button onClick={resetKeys}>Try again</button>
+            </div>
+        )
+    }
+    return children;
+}
 
+function PokemonInfo({pokemonName}) {
+    const [state, setState] = useState({status: 'idle', pokemon: null, error: null});
     useEffect(() => {
         if (!pokemonName) {
             return;
         }
-        setPokemon(null);
-        setError(null);
+        setState({status: 'pending', pokemon: null, error: null});
         fetchPokemon(pokemonName)
             .then(pokemonData => {
-                setPokemon(pokemonData === "" ? null : pokemonData);
-                console.log(pokemonData);
+                setState({status: 'resolved', pokemon: pokemonData, error: null});
             })
             .catch(error => {
-                setError(error);
-                console.log(error);
+                setState({status: 'rejected', pokemon: null, error: error});
             });
     }, [pokemonName])
 
-    if (pokemonName === "") {
-        return "Submit a pokemon"
-    } else if (error !== null) {
-        return (
-            <div role="alert">
-                There was an error: <pre style={{whiteSpace: 'normal'}}>{error.message}</pre>
-            </div>
-        )
-    }
-    else if (pokemon) {
-        return (<PokemonDataView pokemon={pokemon}/>)
-    } else {
-        return (<PokemonInfoFallback name={pokemonName}/>)
+    switch (state.status) {
+        case 'idle':
+            return "Submit a pokemon";
+        case 'pending':
+            return <PokemonInfoFallback name={pokemonName}/>;
+        case 'resolved':
+            return <PokemonDataView pokemon={state.pokemon}/>;
+        case 'rejected':
+            return (
+                <div role="alert">
+                    There was an error: <pre style={{whiteSpace: 'normal'}}>{state.error.message}</pre>
+                </div>
+            )
+        default:
+            throw new Error('This should be impossible');
     }
 }
 
